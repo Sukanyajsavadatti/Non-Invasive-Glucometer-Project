@@ -1,0 +1,58 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <MAX30105.h> // From SparkFun
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+MAX30105 particleSensor;
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin();
+
+  lcd.begin(16, 2);
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("Initializing...");
+
+  if (!particleSensor.begin(Wire)) {
+    Serial.println("MAX30102 not found.");
+    lcd.setCursor(0, 1);
+    lcd.print("Sensor Error");
+    while (1);
+  }
+
+  particleSensor.setup();  
+  particleSensor.setPulseAmplitudeRed(0x0A);
+  particleSensor.setPulseAmplitudeIR(0x0A);
+
+  lcd.setCursor(0, 1);
+  lcd.print("Ready");
+  delay(2000);
+  lcd.clear();
+}
+
+void loop() {
+  long irValue = particleSensor.getIR();
+  long redValue = particleSensor.getRed();
+
+  // Avoid division by zero
+  if (irValue == 0) irValue = 1;
+
+  // Estimated glucose level using demo formula
+  float glucose = ((float)redValue / irValue) * 50.0 + 70.0;
+
+  // Print on Serial Monitor
+  Serial.print("IR: "); Serial.print(irValue);
+  Serial.print(" | RED: "); Serial.print(redValue);
+  Serial.print(" | Glucose: "); Serial.println(glucose);
+
+  // Print on LCD
+  lcd.setCursor(0, 0);
+  lcd.print("Glucose:");
+  lcd.setCursor(9, 0);
+  lcd.print(glucose, 1); // 1 decimal place
+  lcd.print("mg/dL");
+
+  delay(2000);
+  lcd.clear();
+}
